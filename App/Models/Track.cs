@@ -15,7 +15,7 @@ public class Track
     [Required]
     public float Duration { get; set; }
     
-    public int IdMusicAlbum { get; set; }
+    public int? IdMusicAlbum { get; set; }
     
     public virtual ICollection<MusicianTrack> MusicianTracks { get; set; }
     

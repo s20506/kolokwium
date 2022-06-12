@@ -1,3 +1,4 @@
+using System.Net;
 using App.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,5 +33,44 @@ public class DbService : IDbService
             })
             .Where(e => e.Id == idMusician)
             .SingleOrDefaultAsync();
+    }
+    
+    public async Task DeleteMusician(int idMusician)
+    {
+        using (var transaction = await _dbContext.Database.BeginTransactionAsync())
+        {
+            try
+            {
+                var res = await _dbContext.Musicians.Select(e => new 
+                    {
+                        Id = e.IdMusician,
+                        TracksCount = e.MusicianTracks
+                            .Select(mt => mt)
+                            .Where(mt => mt.IdMusician == e.IdMusician)
+                            .Select(mt => new
+                            {
+                                IdMusicAlbum = mt.Track.IdMusicAlbum
+                            })
+                            .Count(mt => mt.IdMusicAlbum != null)
+                    })
+                    .Where(e => e.Id == idMusician)
+                    .SingleOrDefaultAsync();
+
+                if (res == null) throw new HttpRequestException("Musician not found!", null, HttpStatusCode.NotFound);
+                if (res.TracksCount > 0) throw new HttpRequestException("Musician's tracks are already in album!");
+                
+                _dbContext.Musicians.Remove(new Musician()
+                {
+                    IdMusician = idMusician
+                });
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception exception)
+            {
+                await transaction.RollbackAsync();
+                throw exception;
+            }
+        }
     }
 }
